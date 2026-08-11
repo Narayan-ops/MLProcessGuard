@@ -1,0 +1,17 @@
+# Full environment for running the overnight training pipeline (run.py).
+# Install with: pip install -r requirements.txt
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+scikit-learn>=1.3
+xgboost>=2.0
+optuna>=3.5
+joblib>=1.3
+PyYAML>=6.0
+pyarrow>=14.0        # parquet read/write for the simulated dataset
+matplotlib>=3.8      # evaluation plots
+# API server (also needed if you want to run the dashboard locally
+# against your freshly trained models)
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6

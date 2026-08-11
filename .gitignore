@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.env
+venv/
+.venv/
+*.egg-info/
+# The full simulated dataset is large and fully reproducible by re-running
+# run.py — don't let it bloat the git history. Everything else under
+# run_output/ (models/*.joblib, plots/*.png, report.md, metrics.json) is
+# the actual portfolio artifact and IS meant to be committed, since the
+# deployed API loads run_output/models/ directly.
+run_output/data/episodes.parquet
+run_output/logs/
+run_output/console.log

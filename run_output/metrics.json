@@ -1,0 +1,52 @@
+{
+  "data_generation": {
+    "n_episodes": 400,
+    "n_rows": 1152000,
+    "elapsed_s": 162.71562314033508
+  },
+  "soft_sensor": {
+    "model_path": "run_output_fresh\\models\\soft_sensor.joblib",
+    "test_rmse": 0.07511741803378302,
+    "n_trials": 200,
+    "best_params": {
+      "n_estimators": 198,
+      "max_depth": 4,
+      "learning_rate": 0.01413609865555862,
+      "subsample": 0.6997652910456298,
+      "colsample_bytree": 0.9285111973073477
+    },
+    "elapsed_s": 694.8524308204651
+  },
+  "fault_classifier": {
+    "model_path": "run_output_fresh\\models\\fault_classifier.joblib",
+    "test_macro_f1": 0.5792563390641099,
+    "n_trials": 150,
+    "best_params": {
+      "n_estimators": 448,
+      "max_depth": 7,
+      "learning_rate": 0.24613397225785427,
+      "subsample": 0.6913762388299391,
+      "colsample_bytree": 0.630985819476791
+    },
+    "elapsed_s": 3423.3606808185577
+  },
+  "anomaly_detector": {
+    "model_path": "run_output_fresh\\models\\anomaly_detector.joblib",
+    "test_auc": 0.6642422516977432,
+    "contamination": 0.02,
+    "elapsed_s": 8.418714046478271
+  },
+  "rul_predictor": {
+    "model_path": "run_output_fresh\\models\\rul_predictor.joblib",
+    "test_rmse": 553.7959897429321,
+    "n_trials": 150,
+    "best_params": {
+      "n_estimators": 138,
+      "max_depth": 8,
+      "learning_rate": 0.011418523719979376,
+      "subsample": 0.7968879261736005,
+      "colsample_bytree": 0.619542679164901
+    },
+    "elapsed_s": 72.16786551475525
+  }
+}

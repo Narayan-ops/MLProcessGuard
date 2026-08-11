@@ -1,0 +1,157 @@
+# ============================================================
+# MLProcessGuard configuration
+# All physical, control, fault, and ML search parameters live
+# here so the whole project can be tuned from one place.
+# ============================================================
+
+simulator:
+  # Reactor / kinetic parameters (classic non-isothermal CSTR,
+  # Bequette-style exothermic first-order reaction A -> B).
+  # Units: minutes, moles, liters, Kelvin, calories.
+  q: 100.0            # volumetric flow rate through reactor [L/min]
+  V: 100.0             # reactor volume [L]
+  Caf: 1.0              # feed concentration of A [mol/L]
+  Tf: 350.0             # feed temperature [K]
+  k0: 7.2e+10            # Arrhenius pre-exponential factor [1/min]
+  E_over_R: 8750.0      # activation energy / gas constant [K]
+  deltaH: -50000.0      # heat of reaction [cal/mol] (negative = exothermic)
+  rho: 1000.0           # density [g/L]
+  Cp: 0.239             # heat capacity [cal/(g*K)]
+  UA_nominal: 50000.0   # heat transfer coefficient * area [cal/(min*K)]
+  # This reactor is genuinely bistable (open-loop hysteresis): a fixed-Tc
+  # sweep shows a low-conversion branch (T~289-325K for Tc 260-303) and a
+  # high-conversion branch (T~382-401K for Tc 307-330), separated by a
+  # jump/extinction point near Tc~304-306K. We deliberately operate on the
+  # high-conversion branch (industrially the desirable one) with plenty of
+  # margin from the cliff -- see Tc_min below.
+  Tc_init: 320.0         # initial jacket/coolant temperature [K]
+  T_init: 393.0          # initial reactor temperature [K] (near the Tc=320 steady state)
+  Ca_init: 0.06          # initial reactant concentration [mol/L]
+  level_init: 100.0     # initial liquid level [L], nominal = V
+
+  dt_minutes: 1.0        # integration / control step size [min]
+  episode_hours: 48       # simulated plant time per episode [hours]
+  analyzer_sample_minutes: 15   # how often the "lab" Ca analyzer reports (slow, expensive measurement)
+  analyzer_delay_minutes: 16    # dead time before an analyzer reading becomes available
+
+  # PID controller: manipulates Tc (jacket temp, proxy for coolant valve)
+  # to hold reactor temperature T at setpoint.
+  pid:
+    Kc: 0.6
+    tau_I: 15.0      # integral time [min]
+    tau_D: 0.0       # derivative disabled: with noisy measurements it amplified into chatter
+    Tc_min: 310.0    # engineered safety floor, well above the ~306K extinction cliff
+    Tc_max: 335.0
+
+  # Level control: simple proportional controller on outlet flow
+  level_control:
+    Kc: 4.0
+    q_min: 50.0
+    q_max: 150.0
+
+  # Sensor noise (as std dev, added on top of true values)
+  noise:
+    T_std: 0.3          # K
+    Tc_std: 0.3          # K
+    q_std: 0.5            # L/min
+    level_std: 0.5        # L
+    Ca_analyzer_std: 0.01  # mol/L
+
+# Setpoints to randomize over when generating episodes (creates
+# variety of normal operating conditions, like a real plant running
+# at different production rates / grades).
+operating_envelope:
+  T_setpoint_range: [384.0, 398.0]
+  q_setpoint_range: [90.0, 110.0]
+  Caf_range: [0.9, 1.1]
+
+faults:
+  # Each fault has a type, and parameters describing how it evolves.
+  # "abrupt" faults switch on instantly at onset_time with fixed severity.
+  # "incipient" (gradual) faults ramp in severity from onset_time,
+  # which is what makes RUL prediction meaningful.
+  types:
+    - name: none
+      kind: null
+      probability: 0.22   # fraction of episodes with no fault (normal operation)
+
+    - name: feed_disturbance
+      kind: abrupt
+      probability: 0.11
+      description: "Step change in feed concentration Caf (e.g. upstream unit upset)"
+      severity_range: [0.1, 0.4]   # fractional change in Caf
+
+    - name: feed_temp_disturbance
+      kind: abrupt
+      probability: 0.11
+      description: "Step change in feed temperature Tf"
+      severity_range: [5.0, 20.0]  # K change
+
+    - name: fouling
+      kind: incipient
+      probability: 0.11
+      description: "Gradual heat-exchanger fouling: UA decays over time, degrading cooling"
+      severity_range: [0.4, 0.85]  # fractional loss of UA at full onset
+      ramp_hours_range: [10, 30]   # time to reach full severity
+
+    - name: catalyst_deactivation
+      kind: incipient
+      probability: 0.11
+      description: "Gradual catalyst deactivation: effective k0 decays over time"
+      severity_range: [0.3, 0.7]
+      ramp_hours_range: [12, 36]
+
+    - name: sensor_bias_T
+      kind: incipient
+      probability: 0.11
+      description: "Reactor temperature sensor drifts (bias ramps up over time)"
+      severity_range: [2.0, 8.0]   # K of eventual bias
+      ramp_hours_range: [6, 20]
+
+    - name: sensor_bias_Ca
+      kind: incipient
+      probability: 0.11
+      description: "Concentration analyzer drifts / miscalibrates over time"
+      severity_range: [0.05, 0.15]
+      ramp_hours_range: [8, 24]
+
+    - name: valve_stiction
+      kind: abrupt
+      probability: 0.11
+      description: "Coolant control valve sticks, causing a step-then-stuck Tc response"
+      severity_range: [0.3, 0.7]   # how much of the commanded move is lost
+
+  # Threshold used to define "remaining useful life" for incipient
+  # faults: RUL = time until the fault's effect on Ca deviates from
+  # its fault-free trajectory by more than this fraction.
+  rul_deviation_threshold: 0.08
+
+dataset:
+  n_episodes: 400
+  window_size: 20          # timesteps per ML input window (used for classifier/anomaly models)
+  window_stride: 5
+  train_frac: 0.7
+  val_frac: 0.15
+  test_frac: 0.15
+  random_seed: 42
+
+training:
+  # Wall-clock allocation fractions of the total --hours budget.
+  # Must sum to <= 1.0 (remainder goes to buffer / report writing).
+  time_allocation:
+    data_generation: 0.20
+    soft_sensor: 0.20
+    fault_classifier: 0.25
+    anomaly_detector: 0.15
+    rul_predictor: 0.15
+    evaluation_report: 0.05
+
+  optuna:
+    soft_sensor_trials_cap: 200
+    fault_classifier_trials_cap: 150
+    rul_trials_cap: 150
+
+  use_torch_if_available: true
+  torch_epochs_max: 60
+  torch_batch_size: 64
+  torch_early_stop_patience: 8
